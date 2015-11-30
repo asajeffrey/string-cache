@@ -145,6 +145,9 @@ impl Atom {
     unsafe fn unpack(&self) -> UnpackedAtom {
         UnpackedAtom::from_packed(self.data)
     }
+    // Temporarily add functions back in, so that servo will build
+    pub fn from_slice(string: &str) -> Atom { Atom::from(string) }
+    pub fn as_slice(&self) -> &str { &**self }
 }
 
 impl<'a> From<&'a str> for Atom {
