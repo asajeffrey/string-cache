@@ -17,6 +17,7 @@ use std::ops;
 use std::ptr;
 use std::slice;
 use std::str;
+use std::ascii::AsciiExt;
 use std::cmp::Ordering::{self, Equal};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicIsize;
@@ -294,6 +295,33 @@ impl Deserialize for Atom {
     fn deserialize<D>(deserializer: &mut D) -> Result<Atom,D::Error> where D: Deserializer {
         let string: String = try!(Deserialize::deserialize(deserializer));
         Ok(Atom::from(&*string))
+    }
+}
+
+// AsciiExt requires mutating methods, so we just implement the non-mutating ones.
+impl Atom {
+    pub fn is_ascii(&self) -> bool {
+        (&**self).is_ascii()
+    }
+
+    pub fn to_ascii_uppercase(&self) -> Atom {
+        if self.chars().all(char::is_uppercase) {
+            self.clone()
+        } else {
+            Atom::from(&*((&**self).to_ascii_uppercase()))
+        }
+    }
+    
+    pub fn to_ascii_lowercase(&self) -> Atom {
+        if self.chars().all(char::is_lowercase) {
+            self.clone()
+        } else {
+            Atom::from(&*((&**self).to_ascii_lowercase()))
+        }
+    }
+    
+    pub fn eq_ignore_ascii_case(&self, other: &Self) -> bool {
+        (&**self).eq_ignore_ascii_case(&**other)
     }
 }
 
