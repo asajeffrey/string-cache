@@ -49,6 +49,8 @@ struct StringCacheEntry {
     next_in_bucket: Option<Box<StringCacheEntry>>,
     hash: u64,
     ref_count: AtomicIsize,
+    is_lowercase: bool,
+    is_uppercase: bool,
     string: String,
 }
 
@@ -59,6 +61,8 @@ impl StringCacheEntry {
             next_in_bucket: next,
             hash: hash,
             ref_count: AtomicIsize::new(1),
+            is_lowercase: string_to_add.chars().all(char::is_lowercase),
+            is_uppercase: string_to_add.chars().all(char::is_uppercase),
             string: String::from(string_to_add),
         }
     }
@@ -146,9 +150,6 @@ impl Atom {
     unsafe fn unpack(&self) -> UnpackedAtom {
         UnpackedAtom::from_packed(self.data)
     }
-    // Temporarily add functions back in, so that servo will build
-    pub fn from_slice(string: &str) -> Atom { Atom::from(string) }
-    pub fn as_slice(&self) -> &str { &**self }
 }
 
 impl<'a> From<&'a str> for Atom {
@@ -304,8 +305,30 @@ impl Atom {
         (&**self).is_ascii()
     }
 
+    pub fn is_lowercase(&self) -> bool { unsafe {
+        match self.unpack() {
+            Dynamic(entry) => {
+                let entry = entry as *mut StringCacheEntry;
+                (*entry).is_lowercase
+            },
+            Inline(..) => self.chars().all(char::is_lowercase),
+            Static(..) => self.chars().all(char::is_lowercase),
+        }
+    } }
+
+    pub fn is_uppercase(&self) -> bool { unsafe {
+        match self.unpack() {
+            Dynamic(entry) => {
+                let entry = entry as *mut StringCacheEntry;
+                (*entry).is_uppercase
+            },
+            Inline(..) => self.chars().all(char::is_uppercase),
+            Static(..) => self.chars().all(char::is_uppercase),
+        }
+    } }
+
     pub fn to_ascii_uppercase(&self) -> Atom {
-        if self.chars().all(char::is_uppercase) {
+        if self.is_uppercase() {
             self.clone()
         } else {
             Atom::from(&*((&**self).to_ascii_uppercase()))
@@ -313,7 +336,7 @@ impl Atom {
     }
     
     pub fn to_ascii_lowercase(&self) -> Atom {
-        if self.chars().all(char::is_lowercase) {
+        if self.is_lowercase() {
             self.clone()
         } else {
             Atom::from(&*((&**self).to_ascii_lowercase()))
